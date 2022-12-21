@@ -25,6 +25,9 @@ func (repman *ReplicationManager) apiClusterUnprotectedHandler(router *mux.Route
 	router.Handle("/api/clusters/{clusterName}/status", negroni.New(
 		negroni.Wrap(http.HandlerFunc(repman.handlerMuxClusterStatus)),
 	))
+	router.Handle("/api/clusters/{clusterName}/status/new", negroni.New(
+		negroni.Wrap(http.HandlerFunc(repman.handlerMuxClusterStatusNew)),
+	))
 	router.Handle("/api/clusters/{clusterName}/actions/master-physical-backup", negroni.New(
 		negroni.Wrap(http.HandlerFunc(repman.handlerMuxClusterMasterPhysicalBackup)),
 	))
@@ -1507,6 +1510,38 @@ func (repman *ReplicationManager) handlerMuxClusterStatus(w http.ResponseWriter,
 		} else {
 			io.WriteString(w, `{"alive": "errors"}`)
 		}
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, "No cluster found:"+vars["clusterName"])
+	}
+}
+
+func (repman *ReplicationManager) handlerMuxClusterStatusNew(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	vars := mux.Vars(r)
+	mycluster := repman.getClusterByName(vars["clusterName"])
+	if mycluster != nil {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		if mycluster.GetStatus() {
+			io.WriteString(w, mycluster.Status)
+		} else {
+			io.WriteString(w, `{"alive": "errors"}`)
+		}
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, "No cluster found:"+vars["clusterName"])
+	}
+}
+
+func (repman *ReplicationManager) handlerMuxClusterIsActive(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	vars := mux.Vars(r)
+	mycluster := repman.getClusterByName(vars["clusterName"])
+	if mycluster != nil {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, mycluster.Status)
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 		io.WriteString(w, "No cluster found:"+vars["clusterName"])

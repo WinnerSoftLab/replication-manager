@@ -98,6 +98,9 @@ func (repman *ReplicationManager) httpserver() {
 	router.Handle("/api/clusters/{clusterName}/status", negroni.New(
 		negroni.Wrap(http.HandlerFunc(repman.handlerMuxClusterStatus)),
 	))
+	router.Handle("/api/clusters/{clusterName}/status/new", negroni.New(
+		negroni.Wrap(http.HandlerFunc(repman.handlerMuxClusterStatusNew)),
+	))
 
 	router.Handle("/api/clusters/{clusterName}/actions/master-physical-backup", negroni.New(
 		negroni.Wrap(http.HandlerFunc(repman.handlerMuxClusterMasterPhysicalBackup)),
