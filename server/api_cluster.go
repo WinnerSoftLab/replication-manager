@@ -1534,20 +1534,6 @@ func (repman *ReplicationManager) handlerMuxClusterStatusNew(w http.ResponseWrit
 	}
 }
 
-func (repman *ReplicationManager) handlerMuxClusterIsActive(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	vars := mux.Vars(r)
-	mycluster := repman.getClusterByName(vars["clusterName"])
-	if mycluster != nil {
-		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, mycluster.Status)
-	} else {
-		w.WriteHeader(http.StatusBadRequest)
-		io.WriteString(w, "No cluster found:"+vars["clusterName"])
-	}
-}
-
 // swagger:operation GET /api/clusters/{clusterName}/actions/master-physical-backup master-physical-backup
 //
 //
