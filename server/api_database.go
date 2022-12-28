@@ -1475,7 +1475,7 @@ func (repman *ReplicationManager) handlerMuxServersPortIsSlaveStatus(w http.Resp
 
 		maxLag, err := strconv.ParseInt(r.URL.Query().Get("lag"), 10, 64)
 		if err != nil {
-			maxLag = math.MinInt64
+			maxLag = math.MaxInt64
 		}
 		currentLag := node.GetReplicationDelay()
 		if node != nil && mycluster.IsActive() && node.IsDown() == false && node.IsMaintenance == false && ((node.IsSlave && node.HasReplicationIssue() == false && currentLag < maxLag) || (node.IsMaster() && node.ClusterGroup.Conf.PRXServersReadOnMaster)) {
