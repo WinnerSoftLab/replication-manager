@@ -121,6 +121,9 @@ func (repman *ReplicationManager) httpserver() {
 	router.Handle("/api/clusters/{clusterName}/servers/{serverName}/{serverPort}/is-slave", negroni.New(
 		negroni.Wrap(http.HandlerFunc(repman.handlerMuxServersPortIsSlaveStatus)),
 	))
+	router.Handle("/api/clusters/{clusterName}/servers/{serverName}/{serverPort}/is-valid-slave", negroni.New(
+		negroni.Wrap(http.HandlerFunc(repman.handlerMuxServersPortIsValidSlaveStatus)),
+	))
 	// handle API 2.0 compatibility for external checks
 	router.Handle("/clusters/{clusterName}/servers/{serverName}/master-status", negroni.New(
 		negroni.Wrap(http.HandlerFunc(repman.handlerMuxServersIsMasterStatus)),
