@@ -9,12 +9,12 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"strconv"
-
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
+	"io/ioutil"
+	"math"
+	"net/http"
+	"strconv"
 )
 
 func (repman *ReplicationManager) apiDatabaseUnprotectedHandler(router *mux.Router) {
@@ -58,9 +58,7 @@ func (repman *ReplicationManager) apiDatabaseUnprotectedHandler(router *mux.Rout
 	router.Handle("/api/clusters/{clusterName}/servers/{serverName}/{serverPort}/is-slave", negroni.New(
 		negroni.Wrap(http.HandlerFunc(repman.handlerMuxServersPortIsSlaveStatus)),
 	))
-	router.Handle("/api/clusters/{clusterName}/servers/{serverName}/{serverPort}/is-slave/{lag}", negroni.New(
-		negroni.Wrap(http.HandlerFunc(repman.handlerMuxServersPortIsSlaveLagStatus)),
-	))
+
 	router.Handle("/api/clusters/{clusterName}/servers/{serverName}/{serverPort}/config", negroni.New(
 		negroni.Wrap(http.HandlerFunc(repman.handlerMuxServersPortConfig)),
 	))
@@ -1474,40 +1472,14 @@ func (repman *ReplicationManager) handlerMuxServersPortIsSlaveStatus(w http.Resp
 				return
 			}*/
 		node := mycluster.GetServerFromURL(vars["serverName"] + ":" + vars["serverPort"])
-		if node != nil && mycluster.IsActive() && node.IsDown() == false && node.IsMaintenance == false && ((node.IsSlave && node.HasReplicationIssue() == false) || (node.IsMaster() && node.ClusterGroup.Conf.PRXServersReadOnMaster)) {
-			w.Write([]byte("200 -Valid Slave!"))
-			return
-		} else {
-			//	w.WriteHeader(http.StatusInternalServerError)
-			http.Error(w, "-Not a Valid Slave!", 503)
-			//	w.Write([]byte("503 -Not a Valid Slave!"))
-			return
-		}
 
-	} else {
-
-		http.Error(w, "No cluster", 500)
-		return
-	}
-}
-func (repman *ReplicationManager) handlerMuxServersPortIsSlaveLagStatus(w http.ResponseWriter, r *http.Request) {
-
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	vars := mux.Vars(r)
-	mycluster := repman.getClusterByName(vars["clusterName"])
-	if mycluster != nil {
-		/*		if !repman.IsValidClusterACL(r, mycluster) {
-				http.Error(w, "No valid ACL", 403)
-				return
-			}*/
-		node := mycluster.GetServerFromURL(vars["serverName"] + ":" + vars["serverPort"])
-		maxLag, err := strconv.ParseInt(vars["lag"], 10, 64)
+		maxLag, err := strconv.ParseInt(r.URL.Query().Get("lag"), 10, 64)
 		if err != nil {
-			http.Error(w, "empty lag param", 500)
+			maxLag = math.MinInt64
 		}
 		currentLag := node.GetReplicationDelay()
 		if node != nil && mycluster.IsActive() && node.IsDown() == false && node.IsMaintenance == false && ((node.IsSlave && node.HasReplicationIssue() == false && currentLag < maxLag) || (node.IsMaster() && node.ClusterGroup.Conf.PRXServersReadOnMaster)) {
-			w.Write([]byte("200 -Valid Slave!"))
+			w.Write([]byte(fmt.Sprintf("200 -Valid Slave! Current lag=%s, Maxlag=%s", currentLag, strconv.FormatInt(maxLag, 10))))
 			return
 		} else {
 			//	w.WriteHeader(http.StatusInternalServerError)
