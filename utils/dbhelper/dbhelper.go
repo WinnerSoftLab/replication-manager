@@ -144,6 +144,7 @@ type Processlist struct {
 	Time         sql.NullFloat64 `json:"time" db:"Time"`
 	State        sql.NullString  `json:"state" db:"State"`
 	Info         sql.NullString  `json:"info" db:"Info"`
+	TimeMs       sql.NullFloat64 `json:"timeMs" db:"Time_ms"`
 	Progress     sql.NullFloat64 `json:"progress" db:"Progress"`
 	RowsSent     uint64          `json:"rowsSent" db:"Rows_sent"`
 	RowsExamined uint64          `json:"rowsExamined" db:"Rows_examined"`

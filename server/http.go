@@ -11,21 +11,21 @@
 //
 // Replication Manager Monitoring and CLI for MariaDB and MySQL
 //
-//     Schemes: https
-//     Host: localhost
-//     BasePath: /
-//     Version: 0.0.1
-//     License: GPL http://opensource.org/licenses/GPL
-//     Contact: Stephane Varoqui  <svaroqui@gmail.com>
+//	Schemes: https
+//	Host: localhost
+//	BasePath: /
+//	Version: 0.0.1
+//	License: GPL http://opensource.org/licenses/GPL
+//	Contact: Stephane Varoqui  <svaroqui@gmail.com>
 //
-//     Consumes:
-//     - application/json
+//	Consumes:
+//	- application/json
 //
-//     Produces:
-//     - application/json
+//	Produces:
+//	- application/json
 //
-//     Security:
-//       api_key:
+//	Security:
+//	  api_key:
 //
 // swagger:meta
 package server
@@ -83,6 +83,9 @@ func (repman *ReplicationManager) httpserver() {
 	))
 	router.Handle("/api/status", negroni.New(
 		negroni.Wrap(http.HandlerFunc(repman.handlerMuxStatus)),
+	))
+	router.Handle("/api/state", negroni.New(
+		negroni.Wrap(http.HandlerFunc(repman.handlerMuxState)),
 	))
 	router.Handle("/api/prometheus", negroni.New(
 		negroni.Wrap(http.HandlerFunc(repman.handlerMuxPrometheus)),

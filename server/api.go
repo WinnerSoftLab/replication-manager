@@ -121,6 +121,9 @@ func (repman *ReplicationManager) apiserver() {
 	router.Handle("/api/status", negroni.New(
 		negroni.Wrap(http.HandlerFunc(repman.handlerMuxStatus)),
 	))
+	router.Handle("/api/state", negroni.New(
+		negroni.Wrap(http.HandlerFunc(repman.handlerMuxState)),
+	))
 	router.Handle("/api/timeout", negroni.New(
 		negroni.Wrap(http.HandlerFunc(repman.handlerMuxTimeout)),
 	))
@@ -332,8 +335,8 @@ func (repman *ReplicationManager) handlerMuxAddUser(w http.ResponseWriter, r *ht
 //
 // This will show all the available clusters
 //
-//     Responses:
-//       200: clusters
+//	Responses:
+//	  200: clusters
 func (repman *ReplicationManager) handlerMuxClusters(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
@@ -407,15 +410,17 @@ func (repman *ReplicationManager) handlerMuxClusterAdd(w http.ResponseWriter, r 
 //
 // ---
 // produces:
-//  - text/plain; version=0.0.4
+//   - text/plain; version=0.0.4
+//
 // responses:
-//   '200':
-//     description: Prometheus file format
-//     schema:
-//       type: string
-//     headers:
-//       Access-Control-Allow-Origin:
-//         type: string
+//
+//	'200':
+//	  description: Prometheus file format
+//	  schema:
+//	    type: string
+//	  headers:
+//	    Access-Control-Allow-Origin:
+//	      type: string
 func (repman *ReplicationManager) handlerMuxPrometheus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -474,6 +479,26 @@ func (repman *ReplicationManager) handlerMuxStatus(w http.ResponseWriter, r *htt
 		io.WriteString(w, `{"alive": "running"}`)
 	} else {
 		io.WriteString(w, `{"alive": "starting"}`)
+	}
+}
+
+func (repman *ReplicationManager) handlerMuxState(w http.ResponseWriter, r *http.Request) {
+
+	var mycluster *cluster.Cluster
+	repman.Lock()
+	for _, cl := range repman.Clusters {
+		mycluster = cl
+		break
+	}
+	repman.Unlock()
+	if mycluster.Status == ConstMonitorActif {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, mycluster.Status)
+	} else {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, mycluster.Status)
 	}
 }
 
