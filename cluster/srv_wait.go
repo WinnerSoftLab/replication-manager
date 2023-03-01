@@ -11,6 +11,7 @@ package cluster
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/signal18/replication-manager/utils/dbhelper"
@@ -23,7 +24,7 @@ func (server *ServerMonitor) WaitSyncToMaster(master *ServerMonitor) {
 		server.ClusterGroup.LogSQL(logs, err, server.URL, "MasterFailover", LvlErr, "Failed MasterWaitGTID, %s", err)
 
 	} else {
-		logs, err := dbhelper.MasterPosWait(server.Conn, master.BinaryLogFile, master.BinaryLogPos, 30)
+		logs, err := dbhelper.MasterPosWait(server.Conn, server.DBVersion, master.BinaryLogFile, master.BinaryLogPos, 30, server.ClusterGroup.Conf.MasterConn)
 		server.ClusterGroup.LogSQL(logs, err, server.URL, "MasterFailover", LvlErr, "Failed MasterPosWait, %s", err)
 	}
 
@@ -41,13 +42,21 @@ func (server *ServerMonitor) WaitDatabaseStart() error {
 		case <-ticker.C:
 
 			exitloop++
+
 			var err error
+			wg := new(sync.WaitGroup)
+			wg.Add(1)
+			go server.Ping(wg)
+			wg.Wait()
+			err = server.Refresh()
+			server.GetCluster().LogPrintf(LvlInfo, "Waiting state refresh on %s failed with error %s ", server.URL, err)
+
 			if server.GetCluster().GetTopology() == topoMultiMasterWsrep {
 				if !server.IsConnected() {
 					err = errors.New("Not yet connected")
 				}
-			} else {
-				err = server.Refresh()
+				/*	} else { */
+
 			}
 			if err == nil {
 

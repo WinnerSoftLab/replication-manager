@@ -130,7 +130,7 @@ func (cluster *Cluster) isMasterFailed() bool {
 func (cluster *Cluster) isMaxMasterFailedCountReached() bool {
 	// no illimited failed count
 
-	if cluster.master.FailCount >= cluster.Conf.MaxFail {
+	if cluster.GetMaster().FailCount >= cluster.Conf.MaxFail {
 		cluster.sme.AddState("WARN0023", state.State{ErrType: "WARNING", ErrDesc: fmt.Sprintf(clusterError["WARN0023"]), ErrFrom: "CHECK"})
 		return true
 	} else {
@@ -256,6 +256,9 @@ func (cluster *Cluster) isMaxscaleSupectRunning() bool {
 }
 
 func (cluster *Cluster) isFoundCandidateMaster() bool {
+	if cluster.GetTopology() == topoActivePassive {
+		return true
+	}
 	key := -1
 	if cluster.Conf.MultiMasterGrouprep {
 		key = cluster.electSwitchoverGroupReplicationCandidate(cluster.slaves, true)

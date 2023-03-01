@@ -296,6 +296,14 @@ func (cluster *Cluster) GetGComm() string {
 		} else {
 			gcomms = append(gcomms, server.Host+":"+strconv.Itoa(cluster.Conf.MultiMasterGrouprepPort))
 		}
+
+	}
+	//	For bootrap galera cluster on first node
+	if cluster.AllServersFailed() && cluster.GetTopology() == topoMultiMasterWsrep {
+		return ""
+	}
+	if cluster.GetTopology() == topoMultiMasterWsrep {
+		return strings.Join(gcomms, ",") + "?pc.wait_prim=yes"
 	}
 	return strings.Join(gcomms, ",")
 }
@@ -308,7 +316,7 @@ func (cluster *Cluster) getOnePreferedMaster() *ServerMonitor {
 		if cluster.Conf.LogLevel > 2 {
 			cluster.LogPrintf(LvlDbg, "Lookup if server: %s is preferred master: %s", server.URL, cluster.Conf.PrefMaster)
 		}
-		if strings.Contains(cluster.Conf.PrefMaster, server.URL) {
+		if server.IsPrefered() {
 			return server
 		}
 	}
@@ -514,6 +522,8 @@ func (cluster *Cluster) GetTopology() string {
 	} else if cluster.Conf.MasterSlavePgLogical {
 		cluster.Conf.Topology = topoMasterSlavePgLog
 		cluster.IsPostgres = true
+	} else if cluster.Conf.ActivePassive {
+		cluster.Conf.Topology = topoActivePassive
 	} else {
 		relay := cluster.GetRelayServer()
 		if relay != nil && cluster.Conf.ReplicationNoRelay == false {

@@ -42,6 +42,10 @@ func (server *ServerMonitor) RejoinMaster() error {
 	defer func() {
 		server.ClusterGroup.rejoinCond.Send <- true
 	}()
+	if server.ClusterGroup.GetTopology() == topoMultiMasterWsrep {
+		server.ClusterGroup.LogPrintf("INFO", "Rejoining leader %s ignored caused by wsrep protocol", server.URL)
+		return nil
+	}
 
 	if server.ClusterGroup.sme.IsInFailover() {
 		return nil
@@ -100,30 +104,33 @@ func (server *ServerMonitor) RejoinMaster() error {
 				}
 
 			}
-		} else {
-			//no master discovered
-			if server.ClusterGroup.lastmaster != nil {
-				if server.ClusterGroup.lastmaster.ServerID == server.ServerID {
-					server.ClusterGroup.LogPrintf("INFO", "Rediscovering last seen master: %s", server.URL)
-					server.ClusterGroup.master = server
-					server.ClusterGroup.lastmaster = nil
-				} else {
-					if server.ClusterGroup.Conf.FailRestartUnsafe == false {
-						server.ClusterGroup.LogPrintf("INFO", "Rediscovering last seen master: %s", server.URL)
 
-						server.rejoinMasterAsSlave()
-
-					}
-				}
+			// if consul or internal proxy need to adapt read only route to new slaves
+			server.ClusterGroup.backendStateChangeProxies()
+		}
+	} else {
+		//no master discovered rediscovering from last seen
+		if server.ClusterGroup.lastmaster != nil {
+			if server.ClusterGroup.lastmaster.ServerID == server.ServerID {
+				server.ClusterGroup.LogPrintf("INFO", "Rediscovering same master from last seen master: %s", server.URL)
+				server.ClusterGroup.master = server
+				server.SetMaster()
+				server.SetReadWrite()
+				server.ClusterGroup.lastmaster = nil
 			} else {
-				if server.ClusterGroup.Conf.FailRestartUnsafe == true {
-					server.ClusterGroup.LogPrintf("INFO", "Restart Unsafe Picking first non-slave as master: %s", server.URL)
+				if server.ClusterGroup.Conf.FailRestartUnsafe == false {
+					server.ClusterGroup.LogPrintf("INFO", "Rediscovering not the master from last seen master: %s", server.URL)
+					server.rejoinMasterAsSlave()
+					// if consul or internal proxy need to adapt read only route to new slaves
+					server.ClusterGroup.backendStateChangeProxies()
+				} else {
+					server.ClusterGroup.LogPrintf("INFO", "Rediscovering unsafe possibly electing old leader after cascading failure to flavor availability: %s", server.URL)
 					server.ClusterGroup.master = server
 				}
 			}
-		}
-		// if consul or internal proxy need to adapt read only route to new slaves
-		server.ClusterGroup.backendStateChangeProxies()
+
+		} // we have last seen master
+
 	}
 	return nil
 }
@@ -440,14 +447,20 @@ func (server *ServerMonitor) rejoinMasterAsSlave() error {
 
 func (server *ServerMonitor) rejoinSlave(ss dbhelper.SlaveStatus) error {
 	// Test if slave not connected to current master
+
 	defer func() {
 		server.ClusterGroup.rejoinCond.Send <- true
 	}()
+
 	if server.ClusterGroup.GetTopology() == topoMultiMasterRing || server.ClusterGroup.GetTopology() == topoMultiMasterWsrep {
 		if server.ClusterGroup.GetTopology() == topoMultiMasterRing {
 			server.RejoinLoop()
-			return nil
 		}
+		if server.ClusterGroup.GetTopology() == topoMultiMasterWsrep {
+			server.ClusterGroup.LogPrintf("INFO", "Rejoining replica %s ignored caused by wsrep protocol", server.URL)
+		}
+		return nil
+
 	}
 	mycurrentmaster, _ := server.ClusterGroup.GetMasterFromReplication(server)
 	if mycurrentmaster == nil {
@@ -497,7 +510,7 @@ func (server *ServerMonitor) rejoinSlave(ss dbhelper.SlaveStatus) error {
 					logs, err := mycurrentmaster.StopSlave()
 					server.ClusterGroup.LogSQL(logs, err, mycurrentmaster.URL, "Rejoin", LvlErr, "Failed to stop slave on relay server  %s: %s", mycurrentmaster.URL, err)
 					if err == nil {
-						logs, err2 := dbhelper.MasterPosWait(server.Conn, mycurrentmaster.BinaryLogFile, mycurrentmaster.BinaryLogPos, 3600)
+						logs, err2 := dbhelper.MasterPosWait(server.Conn, server.DBVersion, mycurrentmaster.BinaryLogFile, mycurrentmaster.BinaryLogPos, 3600, server.ClusterGroup.Conf.MasterConn)
 						server.ClusterGroup.LogSQL(logs, err2, server.URL, "Rejoin", LvlErr, "Failed positional rejoin wait pos %s %s", server.URL, err2)
 						if err2 == nil {
 							myparentss, _ := mycurrentmaster.GetSlaveStatus(mycurrentmaster.ReplicationSourceName)

@@ -99,7 +99,7 @@ const (
 	ConstMonitorStandby string = "S"
 )
 
-//Unused in server still used in client cmd line
+// Unused in server still used in client cmd line
 type Settings struct {
 	Enterprise          string   `json:"enterprise"`
 	Interactive         string   `json:"interactive"`
@@ -226,7 +226,6 @@ func (repman *ReplicationManager) InitConfig(conf config.Config) {
 		if conf.WithTarball == "ON" {
 			fistRead.AddConfigPath("/usr/local/replication-manager/etc")
 			if _, err := os.Stat("/usr/local/replication-manager/etc/config.toml"); os.IsNotExist(err) {
-				//log.Fatal("No config file /usr/local/replication-manager/etc/config.toml")
 				log.Warning("No config file /usr/local/replication-manager/etc/config.toml")
 			}
 		} else {
@@ -573,7 +572,7 @@ func (repman *ReplicationManager) Run() error {
 			repman.OpenSVC.CertsDERSecret = repman.Conf.ProvOpensvcP12Secret
 			err := repman.OpenSVC.LoadCert(repman.Conf.ProvOpensvcP12Certificate)
 			if err != nil {
-				log.Printf("Cannot load OpenSVC cluster certificate %s ", err)
+				log.Fatalf("Cannot load OpenSVC cluster certificate %s ", err)
 			}
 		}
 		//don't Bootstrap opensvc to speedup test

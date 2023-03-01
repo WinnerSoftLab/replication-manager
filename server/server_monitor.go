@@ -127,6 +127,7 @@ func init() {
 	monitorCmd.Flags().IntVar(&conf.MasterConnectRetry, "replication-master-connect-retry", 10, "Replication is define using this connection retry timeout")
 	monitorCmd.Flags().StringVar(&conf.RplUser, "replication-credential", "root:mariadb", "Replication user in the [user]:[password] format")
 	monitorCmd.Flags().BoolVar(&conf.ReplicationSSL, "replication-use-ssl", false, "Replication use SSL encryption to replicate from master")
+	monitorCmd.Flags().BoolVar(&conf.ActivePassive, "replication-active-passive", false, "Active Passive topology")
 	monitorCmd.Flags().BoolVar(&conf.MultiMaster, "replication-multi-master", false, "Multi-master topology")
 	monitorCmd.Flags().BoolVar(&conf.MultiMasterGrouprep, "replication-multi-master-grouprep", false, "Enable mysql group replication multi-master")
 	monitorCmd.Flags().IntVar(&conf.MultiMasterGrouprepPort, "replication-multi-master-grouprep-port", 33061, "Group replication network port")
@@ -518,26 +519,22 @@ func init() {
 			monitorCmd.Flags().StringVar(&conf.ProvOpensvcP12Certificate, "opensvc-p12-certificate", "/etc/replication-manager/s18.p12", "Certicate used for socket vs collector API opensvc-host refer to a cluster VIP")
 			monitorCmd.Flags().BoolVar(&conf.ProvOpensvcUseCollectorAPI, "opensvc-use-collector-api", false, "Use the collector API instead of cluster VIP")
 			monitorCmd.Flags().StringVar(&conf.KubeConfig, "kube-config", "", "path to ks8 config file")
+			monitorCmd.Flags().StringVar(&conf.ProvOpensvcCollectorAccount, "opensvc-collector-account", "/etc/replication-manager/account.yaml", "Openscv collector account")
 
-			dbConfig := viper.New()
-			dbConfig.SetConfigType("yaml")
-			file, err := ioutil.ReadFile(conf.ConfDir + "/account.yaml")
-			if err != nil {
-				file, err = ioutil.ReadFile(conf.ShareDir + "/opensvc/account.yaml")
+			if conf.ProvOpensvcUseCollectorAPI {
+				dbConfig := viper.New()
+				dbConfig.SetConfigType("yaml")
+				file, err := ioutil.ReadFile(conf.ProvOpensvcCollectorAccount)
 				if err != nil {
-					log.Errorf("%s", err)
+					log.Errorf("Provide OpenSVC account file : %s", err)
+
 				}
+
+				dbConfig.ReadConfig(bytes.NewBuffer(file))
+				conf.ProvUser = dbConfig.Get("email").(string) + ":" + dbConfig.Get("hashed_password").(string)
+				crcTable := crc64.MakeTable(crc64.ECMA)
+				conf.ProvCodeApp = "ns" + strconv.FormatUint(crc64.Checksum([]byte(dbConfig.Get("email").(string)), crcTable), 10)
 			}
-			dbConfig.ReadConfig(bytes.NewBuffer(file))
-			//	log.Printf("OpenSVC user account: %s", dbConfig.Get("email").(string))
-			conf.ProvUser = dbConfig.Get("email").(string) + ":" + dbConfig.Get("hashed_password").(string)
-			crcTable := crc64.MakeTable(crc64.ECMA)
-			conf.ProvCodeApp = "ns" + strconv.FormatUint(crc64.Checksum([]byte(dbConfig.Get("email").(string)), crcTable), 10)
-			//	log.Printf("OpenSVC code application: %s", conf.ProvCodeApp)
-			//	} else {
-			//		monitorCmd.Flags().StringVar(&conf.ProvUser, "opensvc-user", "replication-manager@localhost.localdomain:mariadb", "OpenSVC collector provisioning user")
-			//		monitorCmd.Flags().StringVar(&conf.ProvCodeApp, "opensvc-codeapp", "MariaDB", "OpenSVC collector applicative code")
-			//	}
 
 		}
 	}
